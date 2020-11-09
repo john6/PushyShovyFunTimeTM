@@ -254,7 +254,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   smoothing_speed: 0
-  playerPrefab: {fileID: 9027327789353165855}
   proxy_client_player: {fileID: 0}
-  server_snapshot_rate: 0
+  server_snapshot_rate: 1
   maxSpeed: 10

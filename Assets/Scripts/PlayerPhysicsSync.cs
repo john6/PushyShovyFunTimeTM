@@ -19,7 +19,7 @@ public class PlayerPhysicsSync : MonoBehaviourPun
     private PlayerSyncStructs.ClientState[] client_state_buffer; // client stores predicted moves here
     private PlayerSyncStructs.Inputs[] client_input_buffer; // client stores predicted inputs here
     private Queue<PlayerSyncStructs.StateMessage> client_state_msgs;
-    public GameObject playerPrefab;
+    //public GameObject playerPrefab;
     public Rigidbody proxy_client_player;
 
     private uint client_tick_accumulator;
@@ -71,8 +71,8 @@ public class PlayerPhysicsSync : MonoBehaviourPun
         //If we have not yet spawned a Proxy Player (represents the position of the networked player), spawn it
         if (proxy_client_player == null)
         {
-            GameObject temp = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
-            proxy_client_player = temp.GetComponent<Rigidbody>();
+            //GameObject temp = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
+            proxy_client_player = this.GetComponent<Rigidbody>();
             proxy_client_player.position = transform.position;
             UnityEngine.Debug.Log(proxy_client_player);
 
