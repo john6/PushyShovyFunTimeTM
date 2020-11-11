@@ -14,15 +14,17 @@ using System.Diagnostics;
 
 namespace Photon.Pun.Demo.PunBasics
 {
-    public class PlayerManager : MonoBehaviourPunCallbacks
+    public class PlayerManager : MonoBehaviourPunCallbacks, IPunObservable
     {
         #region Private Fields
 
         [Tooltip("The trigger volume from which you can push another player")]
         [SerializeField]
         private GameObject pushVolume;
-        //True, when the user is pushing
-        bool IsPushing;
+
+        [Tooltip("The RigidBody attached to this GameObject")]
+        [SerializeField]
+        public Rigidbody rb;
         #endregion
 
         #region Public Fields
@@ -32,6 +34,15 @@ namespace Photon.Pun.Demo.PunBasics
 
         [Tooltip("The local player instance. Use this to know if the local player is represented in the Scene")]
         public static GameObject LocalPlayerInstance;
+
+        [Tooltip("The local player instance. Use this to know if the local player is represented in the Scene")]
+        public float maxSpeed;
+
+        [Tooltip("true during the frame that a character inputs the push command")]
+        public bool IsPushing;
+
+        [Tooltip("true during the frame that a character inputs the push command")]
+        public bool IsGrabbing;
 
         #endregion
 
@@ -84,9 +95,10 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void Update()
         {
-
-            ProcessInputs();
-
+            if (photonView.IsMine)
+            {
+                ProcessInputs();
+            }
             // trigger pushing active state
             if (pushVolume != null && IsPushing != pushVolume.activeInHierarchy)
             {
@@ -111,8 +123,10 @@ namespace Photon.Pun.Demo.PunBasics
             }
             // We are only interested in pushes
             // we should be using tags but for the sake of distribution, let's simply check by name.
-            if (!other.name.Contains("Push"))
+            if (other.name.Contains("Push") && other.gameObject != this)
             {
+                Vector3 direction = transform.position - other.transform.position;
+                rb.AddForce(direction * 500.0f);
                 return;
             }
             Health -= 0.1f;
@@ -148,22 +162,55 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void ProcessInputs()
         {
-            if (Input.GetButtonDown("Fire1"))
+            Vector2 playerInput;
+            playerInput.x = 0f;
+            playerInput.y = 0f;
+            playerInput.x = Input.GetAxis("Horizontal");
+            playerInput.y = Input.GetAxis("Vertical");
+            bool jump = Input.GetButtonDown("Jump");
+            bool push = Input.GetButtonDown("Fire1");
+            bool grab = Input.GetButtonDown("Fire2");
+
+            if (push)
             {
-                if (!IsPushing)
-                {
-                    IsPushing = true;
-                }
+                IsPushing = push;
             }
-            if (Input.GetButtonUp("Fire1"))
+            if (jump)
             {
-                if (IsPushing)
-                {
-                    IsPushing = false;
-                }
+                rb.AddForce(new Vector3(0.0f, 400.0f, 0.0f));
+            }
+
+            Move(playerInput);
+        }
+
+        #endregion
+
+        #region MigratedFromOtherTODO
+
+        private void Move(Vector2 stickMove)
+        {
+            Vector3 velocity = new Vector3(stickMove.x, 0f, stickMove.y) * maxSpeed;
+            Vector3 displacement = velocity;
+            rb.AddForce(displacement);
+        }
+
+        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+        {
+            if (stream.IsWriting)
+            {
+                // We own this player: send the others our data
+                //stream.SendNext(this.IsFiring);
+                stream.SendNext(this.Health);
+            }
+            else
+            {
+                // Network player, receive data
+                //this.IsFiring = (bool)stream.ReceiveNext();
+                this.Health = (float)stream.ReceiveNext();
             }
         }
 
         #endregion
+
     }
 }
