@@ -6,6 +6,7 @@ using Photon.Pun;
 
 using System.Collections;
 using System.Diagnostics;
+using System.Threading;
 
 /// <summary>
 /// Player manager.
@@ -35,14 +36,27 @@ namespace Photon.Pun.Demo.PunBasics
         [Tooltip("The local player instance. Use this to know if the local player is represented in the Scene")]
         public static GameObject LocalPlayerInstance;
 
-        [Tooltip("The local player instance. Use this to know if the local player is represented in the Scene")]
+        [Range(0.0f, 25.0f)]
         public float maxSpeed;
+
+        [Range(0.0f, 5000.0f)]
+        public float Speed;
+
+        [Range(0.0f, 500.0f)]
+        public float jumpSpeed;
 
         [Tooltip("true during the frame that a character inputs the push command")]
         public bool IsPushing;
 
         [Tooltip("true during the frame that a character inputs the push command")]
         public bool IsGrabbing;
+
+        private bool isJumping = false;
+
+        private float distToGround;
+
+        private Vector2 playerInput;
+
 
         #endregion
 
@@ -88,6 +102,8 @@ namespace Photon.Pun.Demo.PunBasics
                     UnityEngine.Debug.LogError("<Color=Red><a>Missing</a></Color> CameraWork Component on playerPrefab.", this);
                 }
             }
+
+            distToGround = GetComponent<Collider>().bounds.extents.y;
         }
 
         /// <summary>
@@ -95,19 +111,22 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void Update()
         {
-            if (photonView.IsMine)
-            {
-                ProcessInputs();
-            }
             // trigger pushing active state
             if (pushVolume != null && IsPushing != pushVolume.activeInHierarchy)
             {
                 pushVolume.SetActive(IsPushing);
             }
 
-            if (Health <= 0f)
+            ProcessInputs();
+
+
+        }
+
+        void FixedUpdate()
+        {
+            if (photonView.IsMine && IsGrounded())
             {
-                GameManager.Instance.LeaveRoom();
+                Move(playerInput);
             }
         }
 
@@ -162,12 +181,12 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void ProcessInputs()
         {
-            Vector2 playerInput;
             playerInput.x = 0f;
             playerInput.y = 0f;
             playerInput.x = Input.GetAxis("Horizontal");
             playerInput.y = Input.GetAxis("Vertical");
             bool jump = Input.GetButtonDown("Jump");
+            bool unjump = Input.GetButtonUp("Jump");
             bool push = Input.GetButtonDown("Fire1");
             bool grab = Input.GetButtonDown("Fire2");
 
@@ -177,21 +196,34 @@ namespace Photon.Pun.Demo.PunBasics
             }
             if (jump)
             {
-                rb.AddForce(new Vector3(0.0f, 400.0f, 0.0f));
+                isJumping = true;
+            }
+            if (unjump)
+            {
+                isJumping = false;
             }
 
-            Move(playerInput);
+            if (isJumping && IsGrounded())
+            {
+                rb.AddForce(new Vector3(0.0f, jumpSpeed, 0.0f), ForceMode.Impulse);
+            }
         }
 
         #endregion
 
         #region MigratedFromOtherTODO
 
-        private void Move(Vector2 stickMove)
+        private bool IsGrounded(){
+            return Physics.Raycast(transform.position, -Vector3.up, distToGround + 0.1f);
+        }
+
+    private void Move(Vector2 stickMove)
         {
-            Vector3 velocity = new Vector3(stickMove.x, 0f, stickMove.y) * maxSpeed;
+            UnityEngine.Debug.Log(Time.deltaTime);
+            Vector3 velocity = new Vector3(stickMove.x, 0f, stickMove.y) * Speed * Time.deltaTime;
             Vector3 displacement = velocity;
             rb.AddForce(displacement);
+            rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
         }
 
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
