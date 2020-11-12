@@ -10,11 +10,10 @@ public class PushManager : MonoBehaviour
     [SerializeField]
     private SphereCollider pushCollider;
 
-    [Tooltip("The trigger volume from which you can push another player")]
+    [Tooltip("The player manager script that owns this push volume")]
     [SerializeField]
     private PlayerManager pManager;
 
-    // Start is called before the first frame update
     void Start()
     {
         if (pushCollider == null)
@@ -28,29 +27,28 @@ public class PushManager : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
-
-    //void OnCollisionEnter(Collision collision)
+    //void Update()
     //{
-    //    UnityEngine.Debug.Log("There was a collision");
-    //    if ((collision.gameObject.tag == "Player") && pManager.IsPushing)
-    //    {
-    //        UnityEngine.Debug.Log("I push another player");
-    //        pManager.SendPushAction(collision);
-    //    }
     //}
 
     void OnTriggerEnter(Collider other)
     {
+        Push(other);
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        Push(other);
+    }
+
+    void Push(Collider other)
+    {
         if ((other.gameObject.tag == "Player") && pManager.IsPushing)
         {
             UnityEngine.Debug.Log("I push another player");
-            pManager.SendPushAction(other);
+            pManager.PushOtherPlayer(other);
         }
     }
+
+
 }

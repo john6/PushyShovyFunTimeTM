@@ -17,19 +17,21 @@ namespace Photon.Pun.Demo.PunBasics
 {
     public class PlayerManager : MonoBehaviourPunCallbacks, IPunObservable
     {
+
         #region Private Fields
-
-        //[Tooltip("The trigger volume from which you can push another player")]
-        //[SerializeField]
-        //private GameObject pushVolume;
-
         [Tooltip("The RigidBody attached to this GameObject")]
         [SerializeField]
         public Rigidbody rb;
+
+        [Tooltip("true during the frame that a character inputs the push command")]
+        public bool IsGrabbing;
+
+        private bool isJumping = false;
+
+        private float distToGround;
         #endregion
 
         #region Public Fields
-
         [Tooltip("The current Health of our player")]
         public float Health = 1f;
 
@@ -48,16 +50,7 @@ namespace Photon.Pun.Demo.PunBasics
         [Tooltip("true during the frame that a character inputs the push command")]
         public bool IsPushing;
 
-        [Tooltip("true during the frame that a character inputs the push command")]
-        public bool IsGrabbing;
-
-        private bool isJumping = false;
-
-        private float distToGround;
-
         private Vector2 playerInput;
-
-
         #endregion
 
         #region MonoBehaviour CallBacks
@@ -67,22 +60,12 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void Awake()
         {
-            //if (pushVolume == null)
-            //{
-            //    UnityEngine.Debug.LogError("<Color=Red><a>Missing</a></Color> pushVolume Reference.", this);
-            //}
-            //else
-            //{
-            //    pushVolume.SetActive(false);
-            //}
-
-            // #Important
             // used in GameManager.cs: we keep track of the localPlayer instance to prevent instantiation when levels are synchronized
             if (photonView.IsMine)
             {
                 PlayerManager.LocalPlayerInstance = this.gameObject;
             }
-            // #Critical
+
             // we flag as don't destroy on load so that instance survives level synchronization, thus giving a seamless experience when levels load.
             DontDestroyOnLoad(this.gameObject);
         }
@@ -111,15 +94,10 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void Update()
         {
-            // trigger pushing active state
-            //if (pushVolume != null && IsPushing != pushVolume.activeInHierarchy)
-            //{
-            //    pushVolume.SetActive(IsPushing);
-            //}
-
-            ProcessInputs();
-
-
+            if (photonView.IsMine)
+            {
+                ProcessInputs();
+            }
         }
 
         void FixedUpdate()
@@ -129,30 +107,42 @@ namespace Photon.Pun.Demo.PunBasics
                 Move(playerInput);
             }
         }
+        #endregion
+      
+        #region PhotonGeneral
+        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+        {
+            if (stream.IsWriting)
+            {
+                // We own this player: send the others our data
+                stream.SendNext(this.IsPushing);
+                stream.SendNext(this.Health);
+            }
+            else
+            {
+                // Network player, receive data
+                this.IsPushing = (bool)stream.ReceiveNext();
+                this.Health = (float)stream.ReceiveNext();
+            }
+        }
+        #endregion region
 
-        //public void SendPushAction(Collision collision)
-        //{
-        //    UnityEngine.Debug.Log("I am sending the push RPC");
-        //    Vector3 direction = collision.gameObject.transform.position - transform.position;
-        //    Vector3 impulse = direction * 500.0f;
-        //    PhotonView otherView = collision.gameObject.GetComponent<PhotonView>();
-        //    Photon.Realtime.Player otherplayer = otherView.Owner;
-        //    //photonView.RPC("RpcWithObjectArray", RpcTarget.All, impulse, otherplayer);
-        //}
-
-
-        public void SendPushAction(Collider other)
+        #region RPC functions
+        public void PushOtherPlayer(Collider other)
         {
             if (photonView.IsMine)
             {
-                Vector3 direction = transform.position - other.gameObject.transform.position;
-                Vector3 impulse = direction * -5000.0f;
-                PhotonView otherView = other.gameObject.GetComponent<PhotonView>();
-                int otherplayerNum = otherView.ControllerActorNr;
-                UnityEngine.Debug.Log("I am sending the push RPC to player " + otherplayerNum);
-                int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
-                gameObject.GetComponent<PhotonView>().RPC("GetPushedRPC", RpcTarget.All, impulse, myPlayerNum);
+                Vector3 direction = other.gameObject.transform.position - transform.position;
+                Vector3 impulse = direction * 1000.0f;
+                UnityEngine.Debug.Log("I am calling PushSelf from player " + other.gameObject.GetComponent<PhotonView>().Controller);
+                other.gameObject.GetComponent<PlayerManager>().PushSelfAcrossNetwork(impulse);
             }
+        }
+
+        public void PushSelfAcrossNetwork(Vector3 impulse)
+        {
+            int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
+            gameObject.GetComponent<PhotonView>().RPC("GetPushedRPC", RpcTarget.AllViaServer, impulse, myPlayerNum);
         }
 
         [PunRPC]
@@ -168,11 +158,9 @@ namespace Photon.Pun.Demo.PunBasics
             }
 
         }
-
         #endregion
 
-        #region Custom
-
+        #region Other
         /// <summary>
         /// Processes the inputs. Maintain a flag representing when the user is pressing Fire.
         /// </summary>
@@ -212,15 +200,11 @@ namespace Photon.Pun.Demo.PunBasics
             }
         }
 
-        #endregion
-
-        #region MigratedFromOtherTODO
-
         private bool IsGrounded(){
             return Physics.Raycast(transform.position, -Vector3.up, distToGround + 0.1f);
         }
 
-    private void Move(Vector2 stickMove)
+        private void Move(Vector2 stickMove)
         {
             //UnityEngine.Debug.Log(Time.deltaTime);
             Vector3 velocity = new Vector3(stickMove.x, 0f, stickMove.y) * Speed * Time.deltaTime;
@@ -228,23 +212,6 @@ namespace Photon.Pun.Demo.PunBasics
             rb.AddForce(displacement);
             rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
         }
-
-        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-        {
-            if (stream.IsWriting)
-            {
-                // We own this player: send the others our data
-                //stream.SendNext(this.IsFiring);
-                stream.SendNext(this.Health);
-            }
-            else
-            {
-                // Network player, receive data
-                //this.IsFiring = (bool)stream.ReceiveNext();
-                this.Health = (float)stream.ReceiveNext();
-            }
-        }
-
         #endregion
 
     }
