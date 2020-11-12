@@ -19,9 +19,9 @@ namespace Photon.Pun.Demo.PunBasics
     {
         #region Private Fields
 
-        [Tooltip("The trigger volume from which you can push another player")]
-        [SerializeField]
-        private GameObject pushVolume;
+        //[Tooltip("The trigger volume from which you can push another player")]
+        //[SerializeField]
+        //private GameObject pushVolume;
 
         [Tooltip("The RigidBody attached to this GameObject")]
         [SerializeField]
@@ -67,14 +67,14 @@ namespace Photon.Pun.Demo.PunBasics
         /// </summary>
         void Awake()
         {
-            if (pushVolume == null)
-            {
-                UnityEngine.Debug.LogError("<Color=Red><a>Missing</a></Color> pushVolume Reference.", this);
-            }
-            else
-            {
-                pushVolume.SetActive(false);
-            }
+            //if (pushVolume == null)
+            //{
+            //    UnityEngine.Debug.LogError("<Color=Red><a>Missing</a></Color> pushVolume Reference.", this);
+            //}
+            //else
+            //{
+            //    pushVolume.SetActive(false);
+            //}
 
             // #Important
             // used in GameManager.cs: we keep track of the localPlayer instance to prevent instantiation when levels are synchronized
@@ -112,10 +112,10 @@ namespace Photon.Pun.Demo.PunBasics
         void Update()
         {
             // trigger pushing active state
-            if (pushVolume != null && IsPushing != pushVolume.activeInHierarchy)
-            {
-                pushVolume.SetActive(IsPushing);
-            }
+            //if (pushVolume != null && IsPushing != pushVolume.activeInHierarchy)
+            //{
+            //    pushVolume.SetActive(IsPushing);
+            //}
 
             ProcessInputs();
 
@@ -130,46 +130,42 @@ namespace Photon.Pun.Demo.PunBasics
             }
         }
 
-        /// <summary>
-        /// MonoBehaviour method called when the Collider 'other' enters the trigger.
-        /// Affect Health of the Player if the collider is a push
-        /// </summary>
-        void OnTriggerEnter(Collider other)
+        //public void SendPushAction(Collision collision)
+        //{
+        //    UnityEngine.Debug.Log("I am sending the push RPC");
+        //    Vector3 direction = collision.gameObject.transform.position - transform.position;
+        //    Vector3 impulse = direction * 500.0f;
+        //    PhotonView otherView = collision.gameObject.GetComponent<PhotonView>();
+        //    Photon.Realtime.Player otherplayer = otherView.Owner;
+        //    //photonView.RPC("RpcWithObjectArray", RpcTarget.All, impulse, otherplayer);
+        //}
+
+        public void SendPushAction(Collider other)
         {
-            if (!photonView.IsMine)
+            if (photonView.IsMine)
             {
-                return;
+                Vector3 direction = transform.position - other.gameObject.transform.position;
+                Vector3 impulse = direction * 50000.0f;
+                PhotonView otherView = other.gameObject.GetComponent<PhotonView>();
+                int otherplayerNum = otherView.ControllerActorNr;
+                UnityEngine.Debug.Log("I am sending the push RPC to player " + otherplayerNum);
+                //int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
+                gameObject.GetComponent<PhotonView>().RPC("GetPushedRPC", RpcTarget.AllViaServer, impulse, otherplayerNum);
             }
-            // We are only interested in pushes
-            // we should be using tags but for the sake of distribution, let's simply check by name.
-            if (other.name.Contains("Push") && other.gameObject != this)
-            {
-                Vector3 direction = transform.position - other.transform.position;
-                rb.AddForce(direction * 500.0f);
-                return;
-            }
-            Health -= 0.1f;
         }
-        /// <summary>
-        /// MonoBehaviour method called once per frame for every Collider 'other' that is touching the trigger.
-        /// We're going to affect health while the beams are touching the player
-        /// </summary>
-        /// <param name="other">Other.</param>
-        void OnTriggerStay(Collider other)
+
+        [PunRPC]
+        public void GetPushedRPC(Vector3 pushImpulse, int playerNum)
         {
-            // we dont' do anything if we are not the local player.
-            if (!photonView.IsMine)
+            UnityEngine.Debug.Log("I have received the push RPC, intended for player " + playerNum);
+            int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
+            //This seems to never run on the player that is the owner of the whatever client it is running on.
+            if (myPlayerNum == playerNum)
             {
-                return;
+                UnityEngine.Debug.Log("I will now push myself because I have received the push RPC");
+                rb.AddForce(pushImpulse);
             }
-            // We are only interested in Beamers
-            // we should be using tags but for the sake of distribution, let's simply check by name.
-            if (!other.name.Contains("Push"))
-            {
-                return;
-            }
-            // we slowly affect health when beam is constantly hitting us, so player has to move to prevent death.
-            Health -= 0.1f * Time.deltaTime;
+
         }
 
         #endregion
@@ -188,8 +184,17 @@ namespace Photon.Pun.Demo.PunBasics
             bool jump = Input.GetButtonDown("Jump");
             bool unjump = Input.GetButtonUp("Jump");
             bool push = Input.GetButtonDown("Fire1");
+            bool unPush = Input.GetButtonUp("Fire1");
             bool grab = Input.GetButtonDown("Fire2");
 
+            if (push)
+            {
+                IsPushing = true;
+            }
+            else if (unPush)
+            {
+                IsPushing = false;
+            }
             if (push)
             {
                 IsPushing = push;
@@ -219,7 +224,7 @@ namespace Photon.Pun.Demo.PunBasics
 
     private void Move(Vector2 stickMove)
         {
-            UnityEngine.Debug.Log(Time.deltaTime);
+            //UnityEngine.Debug.Log(Time.deltaTime);
             Vector3 velocity = new Vector3(stickMove.x, 0f, stickMove.y) * Speed * Time.deltaTime;
             Vector3 displacement = velocity;
             rb.AddForce(displacement);
