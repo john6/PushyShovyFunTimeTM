@@ -140,17 +140,18 @@ namespace Photon.Pun.Demo.PunBasics
         //    //photonView.RPC("RpcWithObjectArray", RpcTarget.All, impulse, otherplayer);
         //}
 
+
         public void SendPushAction(Collider other)
         {
             if (photonView.IsMine)
             {
                 Vector3 direction = transform.position - other.gameObject.transform.position;
-                Vector3 impulse = direction * 50000.0f;
+                Vector3 impulse = direction * -5000.0f;
                 PhotonView otherView = other.gameObject.GetComponent<PhotonView>();
                 int otherplayerNum = otherView.ControllerActorNr;
                 UnityEngine.Debug.Log("I am sending the push RPC to player " + otherplayerNum);
-                //int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
-                gameObject.GetComponent<PhotonView>().RPC("GetPushedRPC", RpcTarget.AllViaServer, impulse, otherplayerNum);
+                int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
+                gameObject.GetComponent<PhotonView>().RPC("GetPushedRPC", RpcTarget.All, impulse, myPlayerNum);
             }
         }
 
@@ -159,7 +160,7 @@ namespace Photon.Pun.Demo.PunBasics
         {
             UnityEngine.Debug.Log("I have received the push RPC, intended for player " + playerNum);
             int myPlayerNum = gameObject.GetComponent<PhotonView>().OwnerActorNr;
-            //This seems to never run on the player that is the owner of the whatever client it is running on.
+            UnityEngine.Debug.Log("I am player " + myPlayerNum);
             if (myPlayerNum == playerNum)
             {
                 UnityEngine.Debug.Log("I will now push myself because I have received the push RPC");
@@ -195,10 +196,7 @@ namespace Photon.Pun.Demo.PunBasics
             {
                 IsPushing = false;
             }
-            if (push)
-            {
-                IsPushing = push;
-            }
+
             if (jump)
             {
                 isJumping = true;

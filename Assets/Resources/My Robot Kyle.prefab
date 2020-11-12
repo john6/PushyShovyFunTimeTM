@@ -150,8 +150,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d82d98b06b8667429c66bbf16eb947c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pushCollider: {fileID: 0}
-  pManager: {fileID: 0}
+  pushCollider: {fileID: 5512511692591357697}
+  pManager: {fileID: 477673412208498416}
 --- !u!1 &4820443108297864606
 GameObject:
   m_ObjectHideFlags: 0

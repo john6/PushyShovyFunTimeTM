@@ -47,7 +47,6 @@ public class PushManager : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        //UnityEngine.Debug.Log("There was a collision");
         if ((other.gameObject.tag == "Player") && pManager.IsPushing)
         {
             UnityEngine.Debug.Log("I push another player");
